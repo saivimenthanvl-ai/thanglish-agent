@@ -4,7 +4,7 @@ Dataset pipeline for a **Thanglish → Tamil** converter: a model that reads Tam
 
 Real Thanglish text is scarce, so the dataset is built backwards. Real Tamil sentences are transliterated by a deterministic rule engine to produce the Thanglish side, then the pair is flipped: **Thanglish is the input, the original Tamil is the target.** Labels are always genuine Tamil; inputs are synthetic.
 
-> **Scope of this repo.** It is mainly a **data pipeline**: the transliterator, the dataset builder, a dataset check, a packager, the 903-pair dataset and a notebook that runs them. It also contains LoRA training and evaluation scripts for a **public** base model (see [Model stage](#model-stage-lora-scripts-included-not-yet-run-at-full-scale)). Those scripts have only been smoke-tested (2 training steps and 2 evaluations on CPU); **no trained model or evaluation result is reported yet**. There is no agent or tool use.
+> **Scope of this repo.** It is mainly a **data pipeline**: the transliterator, the dataset builder, a dataset check, a packager, the 903-pair dataset and a notebook that runs them. It also contains LoRA training and evaluation scripts for a **public** base model (see [LoRA experimentation](#lora-experimentation)). Those scripts have only been smoke-tested (2 training steps and 2 evaluations on CPU); **no trained model or evaluation result is reported yet**. There is no agent or tool use.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ All scripts resolve paths relative to their own location, so they run from a clo
 
 This shows the dataset is internally consistent and reproducible from the rules. It is **not** a model result: no model accuracy, perplexity or latency has been measured, and the transliterator's output has not been compared against human-written Thanglish.
 
-## Model stage (LoRA scripts included, not yet run at full scale)
+## LoRA experimentation
 
 Scripts that adapt a **public** causal LM (default `Qwen/Qwen2.5-0.5B-Instruct`; `Qwen/Qwen2.5-1.5B-Instruct` also works) to Thanglish → Tamil with LoRA, and measure the result on held-out data. They are new, written for this repo, and are **not** the original private scripts mentioned in earlier versions of the notebook.
 
@@ -88,7 +88,7 @@ Scripts that adapt a **public** causal LM (default `Qwen/Qwen2.5-0.5B-Instruct`;
 | `evaluate_model.py` | Greedy generation on the 90 held-out records; reports exact match, character error rate (CER, can exceed 1.0 when the output is longer than the reference), mean latency and tokens per second; writes `results/eval_base.json` or `results/eval_lora.json` |
 | `requirements-lora.txt` | `torch`, `transformers`, `peft`, `accelerate` (unpinned) |
 
-Run on a GPU (for example a Colab T4):
+The existing CLI can be used to reproduce and evaluate experiments:
 
 ```bash
 pip install -r requirements.txt -r requirements-lora.txt
@@ -97,7 +97,7 @@ python train_lora.py                                    # 3 epochs, writes adapt
 python evaluate_model.py --adapter adapters/thanglish_lora
 ```
 
-**Verified so far.** In a CPU smoke test, training ran for 2 steps, saved and reloaded an adapter, and evaluation ran with and without it. For `Qwen2.5-0.5B-Instruct` this showed 494,032,768 base parameters and 8,798,208 trainable LoRA parameters (1.78%). The untuned base model fails the task outright (on 2 records it answered in English and invented content, CER above 1), so a before/after comparison is meaningful. **No full training run or evaluation result exists yet**; the numbers belong in this README only after the commands above have been run.
+**Verified so far.** In a CPU smoke test, training ran for 2 steps, saved and reloaded an adapter, and evaluation ran with and without it. For `Qwen2.5-0.5B-Instruct` this showed 494,032,768 base parameters and 8,798,208 trainable LoRA parameters (1.78%). The untuned base model fails the task outright (on 2 records it answered in English and invented content, CER above 1), so a before/after comparison is meaningful. These are smoke-test observations, not model-quality benchmarks.
 
 **How to read the result.** The Thanglish inputs are produced by the rule engine, so a good score here means the model learned to invert those rules on unseen sentences, **not** that it understands real chat Thanglish. The held-out records are a random sample of the same 903 lines (first files in alphabetical order, many film-credit style lines), so near-duplicate lines can appear on both sides.
 
@@ -108,4 +108,4 @@ python evaluate_model.py --adapter adapters/thanglish_lora
 - The dataset is the first 903 unique lines in alphabetical file order, not a random sample of the corpus.
 - `replace("kk", "kk")` in the transliterator is a no-op.
 - There is no human-checked accuracy figure for the transliterator.
-- The model-stage scripts have not been run on a GPU at full scale, and no result from them is claimed.
+- Training and inference scripts are provided for reproducibility; no model-quality result is claimed from the CPU smoke test.
