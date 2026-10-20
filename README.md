@@ -4,7 +4,9 @@ Fine-tuning data pipeline and RunPod notebook for a **Thanglish → Tamil** conv
 
 Real Thanglish text is scarce, so the dataset is built backwards. Real Tamil sentences are transliterated by a deterministic rule engine to produce the Thanglish side, then the pair is flipped: **Thanglish is the input, the original Tamil is the target.** Labels are always genuine Tamil; inputs are synthetic.
 
-> **Scope of this repo.** It contains the data-preparation code, the 903-pair dataset and the RunPod notebook. The notebook also calls files that are **not in this repo**: `scripts/` (`download_drive.py`, `check_environment.py`, `prepare_dataset.py`, `evaluate_rules.py`, `parameter_report.py`, `infer.py`, `train_lora.py`), `requirements.txt`, `tests/`, the tokenizer `models/tamil_sp_v4.model`, and the 18.8 GB checkpoint `model_download/tl_clm_model.zip`. These must be supplied separately (see below).
+> **Scope of this repo.** It is a **data pipeline**, not a working agent. It contains the data-preparation code (`convert_data_to_thanglish_jsonl.py`, `thanglish_transliterator.py`, `package_thanglish_files.py`), a dataset check (`verify_dataset.py`), the 903-pair dataset, `requirements.txt` and the RunPod notebook. No agent or tool use is implemented, and no model has been trained or evaluated in this repo.
+>
+> The notebook also calls files that are **not in this repo**: `scripts/` (`download_drive.py`, `check_environment.py`, `prepare_dataset.py`, `evaluate_rules.py`, `parameter_report.py`, `infer.py`, `train_lora.py`), `tests/`, the tokenizer `models/tamil_sp_v4.model`, and the 18.8 GB checkpoint `model_download/tl_clm_model.zip`. Without them the notebook's Cells 1 and 4 to 10 cannot run; the data pipeline below works on its own.
 
 ## Architecture
 
@@ -80,19 +82,36 @@ flowchart TD
 | 9 | `infer.py --mode model` | Needs checkpoint and `models/tamil_sp_v4.model` |
 | 10 | `train_lora.py` | `RUN_LORA_TRAINING=False` by default; do not enable with the demo set |
 
-## Rebuilding the dataset locally
+## Rebuilding and verifying the dataset locally
 
 ```bash
 pip install open-tamil
 python convert_data_to_thanglish_jsonl.py   # writes output/ and train.jsonl
 python package_thanglish_files.py           # verified ZIP beside output/
+python verify_dataset.py --regen            # checks the dataset (see below)
 ```
 
-Both scripts hard-code `C:\Users\saivi\Downloads\thanglish data`; edit `WORKSPACE_DIR` / `DATA_DIR` for your machine.
+Both build scripts hard-code `C:\Users\saivi\Downloads\thanglish data`; edit `WORKSPACE_DIR` / `DATA_DIR` for your machine. `verify_dataset.py` reads `train.jsonl` next to itself and needs no path edits. (`requirements.txt` lists extra packages for the model and LoRA cells that the data pipeline itself does not need.)
+
+## Measured results
+
+`python verify_dataset.py --regen` on the committed `train.jsonl` (reproducible, no GPU, no checkpoint):
+
+| Check | Result |
+|---|---|
+| Records | 903 |
+| Schema (system + user to assistant, non-empty) | pass |
+| Tamil targets unique / Thanglish inputs unique | 903 / 903 |
+| Transliterator regenerates every Thanglish input from its Tamil target | 903 of 903 |
+| Tamil sentence length (characters) | min 11, mean 127.1, median 126, max 298 |
+| Thanglish input length (characters, mean) | 149.7 |
+
+This shows the dataset is internally consistent and reproducible from the rules. It is **not** a model result: no model accuracy, perplexity or latency has been measured, and the transliterator's output has not been compared against human-written Thanglish.
 
 ## Known limitations
 
 - Training inputs come from one fixed rule set, so the model learns to invert those exact rules (`thaevi`, `vengkataechan`) rather than how people really type ("enna panra", "romba nalla irukku"). Expect a distribution gap on real chat text.
 - Only 18 words receive colloquial treatment, and the Tamil side is mostly formal or literary.
 - `replace("kk", "kk")` in the transliterator is a no-op.
-- `open-tamil` is required but not declared anywhere in this repo.
+- Dependencies are unpinned in `requirements.txt` (the scripts that would fix exact versions are not in this repo).
+- The "60 reference transliteration samples" evaluation (notebook Cell 5) depends on `evaluate_rules.py`, which is not in this repo, so there is no human-checked accuracy figure for the transliterator.
