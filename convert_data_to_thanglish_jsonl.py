@@ -35,7 +35,7 @@ from thanglish_transliterator import to_thanglish
 
 SYSTEM_PROMPT = "பயனர் வழங்கும் தங்கிலீஷ் உரையை இயல்பான தமிழ் எழுத்தாக மாற்றவும். விளக்கம் அல்லது கூடுதல் தகவல் இல்லாமல் மாற்றப்பட்ட தமிழ் உரையை மட்டும் வழங்கவும்."
 
-WORKSPACE_DIR = Path(r"C:\Users\saivi\Downloads\thanglish data")
+WORKSPACE_DIR = Path(__file__).resolve().parent   # repo root; data/ is read from and output/ + train.jsonl written to here
 DATA_DIR = WORKSPACE_DIR / "data"
 OUTPUT_DIR = WORKSPACE_DIR / "output"
 TARGET_COUNT = 903

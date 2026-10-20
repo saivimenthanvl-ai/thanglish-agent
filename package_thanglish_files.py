@@ -13,7 +13,7 @@ import json
 import os
 import re
 
-DATA_DIR = Path(r"C:\Users\saivi\Downloads\thanglish data\output")
+DATA_DIR = Path(__file__).resolve().parent / "output"
 ZIP_PATH = DATA_DIR.parent / "thanglish_903_prompt_completion_dataset.zip"
 EXPECTED_COUNT = 903
 NAME_PATTERN = re.compile(r"^thanglish_pair_\d+\.(jsonl|txt)$")
