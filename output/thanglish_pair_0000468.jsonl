@@ -1,0 +1,1 @@
+{"prompt": [{"role": "system", "content": "பயனர் வழங்கும் தங்கிலீஷ் உரையை இயல்பான தமிழ் எழுத்தாக மாற்றவும். விளக்கம் அல்லது கூடுதல் தகவல் இல்லாமல் மாற்றப்பட்ட தமிழ் உரையை மட்டும் வழங்கவும்."}, {"role": "user", "content": "antha vipatthu kaatchiyaik kaiyaanta vitham arumai."}], "completion": [{"role": "assistant", "content": "அந்த விபத்து காட்சியைக் கையாண்ட விதம் அருமை."}]}
