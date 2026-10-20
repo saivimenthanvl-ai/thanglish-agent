@@ -4,7 +4,7 @@ Dataset pipeline for a **Thanglish → Tamil** converter: a model that reads Tam
 
 Real Thanglish text is scarce, so the dataset is built backwards. Real Tamil sentences are transliterated by a deterministic rule engine to produce the Thanglish side, then the pair is flipped: **Thanglish is the input, the original Tamil is the target.** Labels are always genuine Tamil; inputs are synthetic.
 
-> **Scope of this repo.** It is a **data pipeline only**: the transliterator, the dataset builder, a dataset check, a packager, the 903-pair dataset and a notebook that runs them. It contains **no model, no training or inference code, and no agent or tool use**, and no model has been trained or evaluated here. The planned model stage is described under [Planned model stage](#planned-model-stage-not-in-this-repo).
+> **Scope of this repo.** It is mainly a **data pipeline**: the transliterator, the dataset builder, a dataset check, a packager, the 903-pair dataset and a notebook that runs them. It also contains LoRA training and evaluation scripts for a **public** base model (see [Model stage](#model-stage-lora-scripts-included-not-yet-run-at-full-scale)). Those scripts have only been smoke-tested (2 training steps and 2 evaluations on CPU); **no trained model or evaluation result is reported yet**. There is no agent or tool use.
 
 ## Architecture
 
@@ -22,12 +22,13 @@ flowchart TD
         D --> V
         E --> F
     end
-    subgraph PLAN["Planned model stage (not in repo)"]
-        G["Pretrained Tamil causal LM<br/>+ SentencePiece tokenizer"] --> I["LoRA adapters<br/>on train.jsonl"]
+    subgraph MODEL["Model stage (scripts in repo, not yet run at full scale)"]
+        S["thanglish_split.py<br/>813 train / 90 held-out"] --> I["train_lora.py<br/>LoRA on a public causal LM"]
+        I --> M["evaluate_model.py<br/>exact match, CER, latency, tokens/s"]
     end
     C --> D
     C --> E
-    D -.-> I
+    D --> S
 ```
 
 ## Methodology
@@ -76,9 +77,29 @@ All scripts resolve paths relative to their own location, so they run from a clo
 
 This shows the dataset is internally consistent and reproducible from the rules. It is **not** a model result: no model accuracy, perplexity or latency has been measured, and the transliterator's output has not been compared against human-written Thanglish.
 
-## Planned model stage (not in this repo)
+## Model stage (LoRA scripts included, not yet run at full scale)
 
-The intended next step is to adapt a pretrained Tamil causal language model (with a SentencePiece tokenizer) using LoRA adapters trained on `train.jsonl`, then compare it against the rule engine run in reverse. None of that code, the base checkpoint or the tokenizer is included here, so there is no parameter count or evaluation to report yet.
+Scripts that adapt a **public** causal LM (default `Qwen/Qwen2.5-0.5B-Instruct`; `Qwen/Qwen2.5-1.5B-Instruct` also works) to Thanglish → Tamil with LoRA, and measure the result on held-out data. They are new, written for this repo, and are **not** the original private scripts mentioned in earlier versions of the notebook.
+
+| File | Purpose |
+|---|---|
+| `thanglish_split.py` | Deterministic split of `train.jsonl`: 813 training records and 90 held-out records (seed 42), shared by both scripts |
+| `train_lora.py` | LoRA fine-tuning (rank 16, all attention and MLP projections); loss only on the Tamil answer; writes the adapter and `results/train_info.json` (parameter counts, loss, time, GPU) |
+| `evaluate_model.py` | Greedy generation on the 90 held-out records; reports exact match, character error rate (CER, can exceed 1.0 when the output is longer than the reference), mean latency and tokens per second; writes `results/eval_base.json` or `results/eval_lora.json` |
+| `requirements-lora.txt` | `torch`, `transformers`, `peft`, `accelerate` (unpinned) |
+
+Run on a GPU (for example a Colab T4):
+
+```bash
+pip install -r requirements.txt -r requirements-lora.txt
+python evaluate_model.py                                # baseline: base model, no adapter
+python train_lora.py                                    # 3 epochs, writes adapters/thanglish_lora
+python evaluate_model.py --adapter adapters/thanglish_lora
+```
+
+**Verified so far.** In a CPU smoke test, training ran for 2 steps, saved and reloaded an adapter, and evaluation ran with and without it. For `Qwen2.5-0.5B-Instruct` this showed 494,032,768 base parameters and 8,798,208 trainable LoRA parameters (1.78%). The untuned base model fails the task outright (on 2 records it answered in English and invented content, CER above 1), so a before/after comparison is meaningful. **No full training run or evaluation result exists yet**; the numbers belong in this README only after the commands above have been run.
+
+**How to read the result.** The Thanglish inputs are produced by the rule engine, so a good score here means the model learned to invert those rules on unseen sentences, **not** that it understands real chat Thanglish. The held-out records are a random sample of the same 903 lines (first files in alphabetical order, many film-credit style lines), so near-duplicate lines can appear on both sides.
 
 ## Known limitations
 
@@ -87,3 +108,4 @@ The intended next step is to adapt a pretrained Tamil causal language model (wit
 - The dataset is the first 903 unique lines in alphabetical file order, not a random sample of the corpus.
 - `replace("kk", "kk")` in the transliterator is a no-op.
 - There is no human-checked accuracy figure for the transliterator.
+- The model-stage scripts have not been run on a GPU at full scale, and no result from them is claimed.

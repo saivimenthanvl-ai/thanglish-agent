@@ -1,0 +1,6 @@
+# Extra packages for the model stage (train_lora.py, evaluate_model.py).
+# Versions are unpinned; after one working run, `pip freeze` and pin from that.
+torch
+transformers
+peft
+accelerate
