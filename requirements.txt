@@ -1,0 +1,25 @@
+# Thanglish Agent - requirements
+# Used by: pip install -r requirements.txt  (notebook Cell 1, RunPod)
+#
+# Versions are left unpinned on purpose: the scripts that decide exact versions
+# (train_lora.py, infer.py) are not in this repo. After one working run on RunPod,
+# run `pip freeze > requirements-lock.txt` and pin from that.
+
+# --- Required by code that is in this repo -------------------------------
+open-tamil          # provides `import tamil` (thanglish_transliterator.py)
+
+# --- Required by the notebook cells --------------------------------------
+pytest              # Cell 6: pytest -q tests
+gdown               # Cell 2: download_drive.py --method gdown
+sentencepiece       # Cell 9: tokenizer models/tamil_sp_v4.model
+
+# --- Likely needed for model inference and LoRA training -----------------
+# (inferred from "pretrained causal LM + LoRA adapters"; remove any that
+#  train_lora.py / infer.py do not import)
+torch
+transformers
+peft
+accelerate
+datasets
+numpy
+tqdm
